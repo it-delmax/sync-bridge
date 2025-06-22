@@ -39,9 +39,9 @@ class SyncTaskExecution extends Model
                     ? $model->finished_at
                     : Carbon::parse($model->finished_at);
 
-                $model->elapsed_time = $finished->diffInMilliseconds($started);
+                $model->elapsed_time_ms = $finished->diffInMilliseconds($started);
             } else {
-                $model->elapsed_time = null;
+                $model->elapsed_time_ms = null;
             }
         });
     }
