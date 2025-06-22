@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use App\Models\Task;
 use App\Models\Resource;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 /**
  * Created by PhpStorm.
@@ -28,13 +29,13 @@ class Profile extends Model
         return $this->hasMany(Task::class, 'profile_id', 'profile_id')->where('is_active', 1)->orderBy('order_index');
     }
 
-    public function srcResource()
+    public function source(): HasOne
     {
 
         return $this->hasOne(Resource::class, 'resource_id', 'src_resource_id');
     }
 
-    public function dstResource()
+    public function destination()
     {
 
         return $this->hasOne(Resource::class, 'resource_id', 'dst_resource_id');

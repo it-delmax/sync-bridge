@@ -11,6 +11,7 @@ use App\Models\SyncLog;
 use App\Models\TaskField;
 use App\Models\Profile;
 use App\Services\SyncRecordLogger;
+use App\Traits\MeasuresElapsedTime;
 
 /**
  * Created by PhpStorm.
@@ -22,6 +23,8 @@ use App\Services\SyncRecordLogger;
 
 class Task extends Model
 {
+    use MeasuresElapsedTime;
+
     protected $connection = 'dmxsync';
 
     protected $table = 'task';
@@ -37,6 +40,8 @@ class Task extends Model
     private $fieldMap = [];
 
     private $params = [];
+
+    private SyncTaskExecution $executionInfo;
 
     public function profile()
     {
@@ -60,15 +65,39 @@ class Task extends Model
      */
     public function execute(array $range = []): array
     {
+        $this->startTimer();
+
         $logger = new SyncRecordLogger(
-            connection: $this->profile->srcResource->log_connection,
-            source: $this->profile->srcResource->name ?? 'unknown',
+            connection: $this->profile->source->log_connection,
+            source: $this->profile->source->name ?? 'unknown',
             syncedBy: 'cron'
         );
 
+
+        $logConnection = $this->profile->source->log_connection;
+
+        $this->executionInfo = SyncTaskExecution::on($logConnection)->create([
+            'task_id' => $this->task_id,
+            'task_name' => $this->name,
+            'source_db' => $this->profile->source->getDbName(),
+            'destination_db' => $this->profile->destination->getDbName(),
+            'profile_name' => $this->profile->name,
+            'profile_id' => $this->profile_id,
+            'executed_records' => 0,
+            'success_count' => 0,
+            'fail_count' => 0,
+            'status' => 'pending',
+            'started_at' => now(),
+            'finished_at' => null,
+        ]);
+
         $this->prepareTask($range);
 
-        switch ($this->profile->dstResource->resourceType->name) {
+        $this->executionInfo->fill([
+            'status' => 'started',
+        ])->save();
+
+        switch ($this->profile->destination->resourceType->name) {
             case 'MySQL':
                 $recordsCount = $this->executeMySQL($logger);
                 break;
@@ -80,6 +109,15 @@ class Task extends Model
                 break;
         }
 
+
+        $this->executionInfo->fill([
+            'executed_records' => $recordsCount['success'] + $recordsCount['failed'],
+            'success_count' => $recordsCount['success'],
+            'fail_count' => $recordsCount['failed'],
+            'status' => 'completed',
+            'finished_at' => now(),
+            'elapsed_time_ms' => $this->elapsedMilliseconds(), // convert to milliseconds
+        ])->save();
         return $recordsCount;
     }
 
@@ -87,7 +125,7 @@ class Task extends Model
     {
         $success = 0;
         $failed = 0;
-        $connection = $this->profile->dstResource->db_connection;
+        $connection = $this->profile->destination->db_connection;
 
         $this->dstSQLStatement = $this->buildSQLStatemnt();
 
@@ -231,7 +269,7 @@ class Task extends Model
 
     private function getSrcData(array $range = [])
     {
-        $connection = $this->profile->srcResource->db_connection;
+        $connection = $this->profile->source->db_connection;
 
         return DB::connection($connection)->select($this->srcSQLStatement, $range);
     }

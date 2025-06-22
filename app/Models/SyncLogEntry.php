@@ -6,8 +6,9 @@ use Illuminate\Database\Eloquent\Model;
 
 class SyncLogEntry extends Model
 {
-    protected $connection = 'dmxsync';
+
     protected $table = 'sync_log';
+
     public $timestamps = false;
 
     protected $fillable = [

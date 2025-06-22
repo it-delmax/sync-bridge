@@ -61,7 +61,7 @@ class Resource extends Model
 
     public function getDbConnectionAttribute()
     {
-        $connectionName = 'dynamic_' . $this->id;
+        $connectionName = 'dynamic_' . $this->resource_id;
 
         if (!config()->has("database.connections.{$connectionName}")) {
             DynamicConnection::makeFromResource($this, 'db_connection_params');
@@ -72,7 +72,7 @@ class Resource extends Model
 
     public function getLogConnectionAttribute()
     {
-        $connectionName = 'log_' . $this->id;
+        $connectionName = 'log_' . $this->resource_id;
 
         if (!config()->has("database.connections.{$connectionName}")) {
             DynamicConnection::makeFromResource($this, 'log_connection_params', $connectionName);

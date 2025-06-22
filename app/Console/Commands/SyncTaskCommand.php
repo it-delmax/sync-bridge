@@ -4,10 +4,14 @@ namespace App\Console\Commands;
 
 use App\Models\SyncTaskExecution;
 use App\Models\Task;
+use App\Traits\MeasuresElapsedTime;
+use Carbon\Carbon;
 use Illuminate\Console\Command;
 
 class SyncTaskCommand extends Command
 {
+    use MeasuresElapsedTime;
+
     protected $signature = 'dmx:sync-task
                             {task_id : ID of the task to execute}
                             {--range=* : Optional range in format from,to (e.g. 1000,2000)}
@@ -18,33 +22,18 @@ class SyncTaskCommand extends Command
     public function handle(): int
     {
 
-        $startTime = microtime(true);
+        $this->startTimer();
 
         $taskId = $this->argument('task_id');
         $range = $this->option('range');
         $step = (int)$this->option('step');
-
-        $task = Task::find($taskId);
+        $startedAt = Carbon::now();
+        $task = Task::with('profile')->find($taskId);
 
         if (!$task) {
             $this->error("❌ Task ID $taskId not found.");
             return Command::FAILURE;
         }
-        $logConnection = $task->profile->srcResource->log_connection;
-
-        $execution = SyncTaskExecution::on($logConnection)->create([
-            'task_id' => $task->task_id,
-            'task_name' => $task->name,
-            'source_db' => $task->profile->srcResource->getDbName(),
-            'destination_db' => $task->profile->dstResource->getDbName(),
-            'profile_name' => $task->profile->name,
-            'profile_id' => $task->profile_id,
-            'executed_records' => 0,
-            'success_count' => 0,
-            'fail_count' => 0,
-            'status' => 'pending',
-            'started_at' => now(),
-        ]);
 
         $this->info("▶️  Executing task: {$task->name} [ID: {$task->task_id}]");
 
@@ -54,15 +43,8 @@ class SyncTaskCommand extends Command
 
         $totalCount = $taskResult['success'] + $taskResult['failed'];
 
-        $execution->fill([
-            'executed_records' => $taskResult['success'] + $taskResult['failed'],
-            'success_count' => $taskResult['success'],
-            'fail_count' => $taskResult['failed'],
-            'status' => 'success',
-            'finished_at' => now(),
-        ])->save();
 
-        $duration = number_format(microtime(true) - $startTime, 3);
+        $duration = $this->elapsedSeconds();
         $this->info("✅ Total records processed: {$totalCount} in {$duration} seconds.");
         $this->info('=====================================================');
 

@@ -5,17 +5,23 @@ namespace App\Console\Commands;
 use App\Models\Profile;
 use App\Models\SyncTaskExecution;
 use App\Models\UpdateKind;
+use App\Traits\MeasuresElapsedTime;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
 
 class SyncProfileCommand extends Command
 {
+    use MeasuresElapsedTime;
+
     protected $signature = 'dmx:sync-profile {name?}';
     protected $description = 'Execute sync profile by name';
 
+    private $logConnection;
+
     public function handle(): int
     {
-        $startTime = microtime(true);
+        $this->startTimer();
+
         $name = $this->argument('name') ?? config('sync.profile_name');
 
 
@@ -27,14 +33,15 @@ class SyncProfileCommand extends Command
             return Command::FAILURE;
         }
 
-        $logConnection = $profile->srcResource->log_connection;
+        $this->logConnection = $profile->source->log_connection;
+
         $startedAt = Carbon::now();
-        $execution = SyncTaskExecution::on($logConnection)->create([
+        $execution = SyncTaskExecution::on($this->logConnection)->create([
             'task_id' => null,
             'profile_id' => $profile->profile_id,
             'profile_name' => $profile->name,
-            'source_db' => $profile->srcResource->getDbName(),
-            'destination_db' => $profile->dstResource->getDbName(),
+            'source_db' => $profile->source->getDbName(),
+            'destination_db' => $profile->destination->getDbName(),
             'executed_records' => 0,
             'success_count' => 0,
             'fail_count' => 0,
@@ -50,69 +57,37 @@ class SyncProfileCommand extends Command
 
         foreach ($profile->activeTasks as $task) {
 
-            $execution = SyncTaskExecution::on($logConnection)->create([
-                'task_id' => $task->task_id,
-                'task_name' => $task->name,
-                'source_db' => $task->profile->srcResource->getDbName(),
-                'destination_db' => $task->profile->dstResource->getDbName(),
-                'profile_id' => $task->profile_id,
-                'profile_name' => $task->profile->name,
-                'executed_records' => 0,
-                'success_count' => 0,
-                'fail_count' => 0,
-                'status' => 'pending',
-                'started_at' => now(),
-            ]);
-
             if ($task->parent && !$task->parent->is_active) {
-                $message = sprintf("⚠️  Parent task '%s' for '%s' is inactive, skipping.", $task->parent->name, $task->name);
-                $this->warn($message);
-
-                $execution->fill([
-                    'status' => 'skipped',
-                    'finished_at' => now(),
-                    'error_message' => $message
-                ])->save();
+                $message = "🗂️ ☑️ Parent task '{$task->parent->name}' for '{$task->name}' is inactive, skipping.";
+                $this->skipTaskExecution($task, $message);
                 continue;
             }
             if (!$task->is_active) {
-                $message = sprintf("⚠️  Task '%s' is inactive, skipping.", $task->name);
-                $this->warn($message);
-                $execution->fill([
-                    'status' => 'skipped',
-                    'finished_at' => now(),
-                    'error_message' => $message
-                ])->save();
+                $message = "☑️ Task '{$task->name}' is inactive, skipping.";
+                $this->skipTaskExecution($task, $message);
                 continue;
             }
             if ($task->update_kind_id == UpdateKind::NO_DB_ACTION) {
-                $message = sprintf("⚠️  Task '%s' has no DB action, skipping.", $task->name);
-                $this->warn($message);
-                $execution->fill([
-                    'status' => 'skipped',
-                    'finished_at' => now(),
-                    'error_message' => $message
-                ])->save();
+                $message = "↪️ Task '{$task->name}' has no DB action, skipping.";
+                $this->skipTaskExecution($task, $message);
                 continue;
             }
 
-            $taskStart = microtime(true);
             $results = $task->execute();
-            $taskEnd = microtime(true);
             $count = $results['success'] + $results['failed'];
             $totalResult['success'] += $results['success'];
             $totalResult['failed'] += $results['failed'];
-            $duration = number_format($taskEnd - $taskStart, 3);
-            $this->info(sprintf("%s | ✅ %s → %d records in %s sec.", now()->format('H:i:s'), $task->name, $count, $duration));
+
+            $this->info(sprintf("%s | ✅ %s → %d records in %s sec.", now()->format('H:i:s'), $task->name, $count, $this->elapsedSeconds()));
 
             $totalCount += $count;
         }
 
-        $execution = SyncTaskExecution::on($logConnection)->create([
+        SyncTaskExecution::on($this->logConnection)->create([
             'task_id' => null,
             'task_name' => $name,
-            'source_db' => $profile->srcResource->getDbName(),
-            'destination_db' => $profile->dstResource->getDbName(),
+            'source_db' => $profile->source->getDbName(),
+            'destination_db' => $profile->destination->getDbName(),
             'profile_name' => $profile->name,
             'profile_id' => $profile->profile_id,
             'executed_records' => $totalCount,
@@ -121,13 +96,36 @@ class SyncProfileCommand extends Command
             'status' => 'profile-completed',
             'started_at' => $startedAt,
             'finished_at' => now(),
+            'elapsed_time_ms' => $this->elapsedMilliseconds(), // convert to milliseconds
         ]);
 
-        $totalTime = number_format(microtime(true) - $startTime, 3);
+
         $this->info("-------------------------------------");
-        $this->info("🎯 Profile '$name' completed: $totalCount records in $totalTime sec.");
+        $this->info("🎯 Profile '$name' completed: $totalCount records in {$this->elapsedSeconds()} sec.");
         $this->info("=====================================");
 
         return Command::SUCCESS;
+    }
+
+    private function skipTaskExecution($task, string $message): void
+    {
+        $this->warn($message);
+
+        SyncTaskExecution::on($this->logConnection)->create([
+            'task_id' => $task->task_id,
+            'task_name' => $task->name,
+            'source_db' => $task->profile->source->getDbName(),
+            'destination_db' => $task->profile->destination->getDbName(),
+            'profile_id' => $task->profile_id,
+            'profile_name' => $task->profile->name,
+            'executed_records' => 0,
+            'success_count' => 0,
+            'fail_count' => 0,
+            'status' => 'skipped',
+            'started_at' => now(),
+            'finished_at' => null,
+            'error_message' => $message,
+            'elapsed_time_ms' => 0,
+        ]);
     }
 }

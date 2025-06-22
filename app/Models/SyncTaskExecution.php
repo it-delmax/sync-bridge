@@ -27,22 +27,42 @@ class SyncTaskExecution extends Model
         'elapsed_time_ms',
     ];
 
-    protected static function booted(): void
+    protected $casts = [
+        'started_at' => 'datetime',
+        'finished_at' => 'datetime',
+    ];
+
+    // protected static function booted(): void
+    // {
+    //     static::saving(function (self $model) {
+    //         try {
+    //             $started = $model->started_at instanceof Carbon
+    //                 ? $model->started_at
+    //                 : Carbon::parse($model->started_at);
+
+    //             $finished = $model->finished_at instanceof Carbon
+    //                 ? $model->finished_at
+    //                 : Carbon::parse($model->finished_at);
+
+    //             if ($started && $finished) {
+    //                 $model->elapsed_time_ms = max(0, $finished->diffInMilliseconds($started));
+    //             }
+    //         } catch (\Throwable $e) {
+    //             logger()->warning('Elapsed time calc failed', [
+    //                 'started_at' => $model->started_at,
+    //                 'finished_at' => $model->finished_at,
+    //                 'error' => $e->getMessage(),
+    //             ]);
+    //             $model->elapsed_time_ms = null;
+    //         }
+    //     });
+    // }
+
+    public function markCompleted(string $status = 'completed'): void
     {
-        static::saving(function (self $model) {
-            if ($model->started_at && $model->finished_at) {
-                $started = $model->started_at instanceof Carbon
-                    ? $model->started_at
-                    : Carbon::parse($model->started_at);
-
-                $finished = $model->finished_at instanceof Carbon
-                    ? $model->finished_at
-                    : Carbon::parse($model->finished_at);
-
-                $model->elapsed_time_ms = $finished->diffInMilliseconds($started);
-            } else {
-                $model->elapsed_time_ms = null;
-            }
-        });
+        $this->fill([
+            'finished_at' => now(),
+            'status' => $status,
+        ])->save();
     }
 }
