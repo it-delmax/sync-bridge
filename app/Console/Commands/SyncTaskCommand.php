@@ -27,7 +27,7 @@ class SyncTaskCommand extends Command
         $taskId = $this->argument('task_id');
         $range = $this->option('range');
         $step = (int)$this->option('step');
-        $startedAt = Carbon::now();
+
         $task = Task::with('profile')->find($taskId);
 
         if (!$task) {
@@ -38,7 +38,7 @@ class SyncTaskCommand extends Command
         $this->info("▶️  Executing task: {$task->name} [ID: {$task->task_id}]");
 
         $taskResult = count($range) === 2
-            ? $this->executeInSteps($task, (int)$range[0], (int)$range[1], $step)
+            ? $this->executeInSteps($task, null, (int)$range[0], (int)$range[1], $step)
             : $task->execute();
 
         $totalCount = $taskResult['success'] + $taskResult['failed'];
@@ -51,7 +51,7 @@ class SyncTaskCommand extends Command
         return Command::SUCCESS;
     }
 
-    protected function executeInSteps(Task $task, int $start, int $end, int $step): int
+    protected function executeInSteps(Task $task, ?int $batchid, int $start, int $end, int $step): int
     {
         $this->info("Processing range: from {$start} to {$end} in steps of {$step}");
 
@@ -63,7 +63,7 @@ class SyncTaskCommand extends Command
             $this->info("➡️  Executing batch: {$from} to {$to}");
 
             $batchStart = microtime(true);
-            $count = $task->execute([$from, $to]);
+            $count = $task->execute($batchid, [$from, $to]);
             $elapsed = number_format(microtime(true) - $batchStart, 3);
 
             $this->info("✔️  Records processed: {$count} in {$elapsed} sec.");

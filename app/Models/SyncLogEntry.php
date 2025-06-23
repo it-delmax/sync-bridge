@@ -13,6 +13,7 @@ class SyncLogEntry extends Model
 
     protected $fillable = [
         'row_id',
+        'batch_id',
         'table_name',
         'task_id',
         'success',

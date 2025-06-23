@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Models\Profile;
+use App\Models\SyncBatch;
 use App\Models\SyncTaskExecution;
 use App\Models\UpdateKind;
 use App\Traits\MeasuresElapsedTime;
@@ -36,8 +37,8 @@ class SyncProfileCommand extends Command
         $this->logConnection = $profile->source->log_connection;
 
         $startedAt = Carbon::now();
-        $execution = SyncTaskExecution::on($this->logConnection)->create([
-            'task_id' => null,
+
+        $batch = SyncBatch::on($this->logConnection)->create([
             'profile_id' => $profile->profile_id,
             'profile_name' => $profile->name,
             'source_db' => $profile->source->getDbName(),
@@ -45,10 +46,9 @@ class SyncProfileCommand extends Command
             'executed_records' => 0,
             'success_count' => 0,
             'fail_count' => 0,
-            'status' => 'profile-started',
+            'status' => 'running',
             'started_at' => $startedAt,
         ]);
-
         $totalCount = 0;
         $totalResult = ['success' => 0, 'failed' => 0];
 
@@ -83,21 +83,16 @@ class SyncProfileCommand extends Command
             $totalCount += $count;
         }
 
-        SyncTaskExecution::on($this->logConnection)->create([
-            'task_id' => null,
-            'task_name' => $name,
-            'source_db' => $profile->source->getDbName(),
-            'destination_db' => $profile->destination->getDbName(),
-            'profile_name' => $profile->name,
-            'profile_id' => $profile->profile_id,
+
+
+        $batch->fill([
             'executed_records' => $totalCount,
             'success_count' => $totalResult['success'],
             'fail_count' => $totalResult['failed'],
-            'status' => 'profile-completed',
-            'started_at' => $startedAt,
+            'status' => 'completed',
             'finished_at' => now(),
             'elapsed_time_ms' => $this->elapsedMilliseconds(), // convert to milliseconds
-        ]);
+        ])->save();
 
 
         $this->info("-------------------------------------");

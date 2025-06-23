@@ -63,13 +63,14 @@ class Task extends Model
      * @param array $range
      * @return array ['success' => int, 'failed' => int]
      */
-    public function execute(array $range = []): array
+    public function execute(?int $batchId = null, array $range = []): array
     {
         $this->startTimer();
 
         $logger = new SyncRecordLogger(
             connection: $this->profile->source->log_connection,
             source: $this->profile->source->name ?? 'unknown',
+            batch_id: $batchId,
             syncedBy: 'cron'
         );
 
@@ -77,10 +78,9 @@ class Task extends Model
         $logConnection = $this->profile->source->log_connection;
 
         $this->executionInfo = SyncTaskExecution::on($logConnection)->create([
+            'batch_id' => $batchId,
             'task_id' => $this->task_id,
             'task_name' => $this->name,
-            'source_db' => $this->profile->source->getDbName(),
-            'destination_db' => $this->profile->destination->getDbName(),
             'profile_name' => $this->profile->name,
             'profile_id' => $this->profile_id,
             'executed_records' => 0,

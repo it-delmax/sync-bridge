@@ -9,6 +9,7 @@ class SyncRecordLogger
     public function __construct(
         protected string $connection,
         protected ?string $source = 'unknown',
+        protected ?string $batch_id = null,
         protected ?string $syncedBy = null
     ) {}
 
@@ -31,6 +32,7 @@ class SyncRecordLogger
 
         return SyncLogEntry::on($this->connection)->create([
             'row_id'        => $rowId,
+            'batch_id'     => $this->batch_id,
             'table_name'    => $table,
             'task_id'       => $taskId,
             'success'       => $success,
