@@ -17,8 +17,6 @@ class SyncTaskExecution extends Model
         'task_name',
         'profile_id',
         'profile_name',
-        'source_db',
-        'destination_db',
         'executed_records',
         'success_count',
         'fail_count',

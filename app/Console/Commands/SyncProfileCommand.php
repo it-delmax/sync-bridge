@@ -59,21 +59,21 @@ class SyncProfileCommand extends Command
 
             if ($task->parent && !$task->parent->is_active) {
                 $message = "🗂️ ☑️ Parent task '{$task->parent->name}' for '{$task->name}' is inactive, skipping.";
-                $this->skipTaskExecution($task, $message);
+                $this->skipTaskExecution($task, $message, $batch->batch_id);
                 continue;
             }
             if (!$task->is_active) {
                 $message = "☑️ Task '{$task->name}' is inactive, skipping.";
-                $this->skipTaskExecution($task, $message);
+                $this->skipTaskExecution($task, $message, $batch->batch_id);
                 continue;
             }
             if ($task->update_kind_id == UpdateKind::NO_DB_ACTION) {
                 $message = "↪️ Task '{$task->name}' has no DB action, skipping.";
-                $this->skipTaskExecution($task, $message);
+                $this->skipTaskExecution($task, $message, $batch->batch_id);
                 continue;
             }
 
-            $results = $task->execute();
+            $results = $task->execute($batch->batch_id);
             $count = $results['success'] + $results['failed'];
             $totalResult['success'] += $results['success'];
             $totalResult['failed'] += $results['failed'];
@@ -102,15 +102,14 @@ class SyncProfileCommand extends Command
         return Command::SUCCESS;
     }
 
-    private function skipTaskExecution($task, string $message): void
+    private function skipTaskExecution($task, string $message, ?int $batchId): void
     {
         $this->warn($message);
 
         SyncTaskExecution::on($this->logConnection)->create([
+            'batch_id' => $batchId,
             'task_id' => $task->task_id,
             'task_name' => $task->name,
-            'source_db' => $task->profile->source->getDbName(),
-            'destination_db' => $task->profile->destination->getDbName(),
             'profile_id' => $task->profile_id,
             'profile_name' => $task->profile->name,
             'executed_records' => 0,
