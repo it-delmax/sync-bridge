@@ -7,7 +7,6 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Exception;
 use App\Models\UpdateKind;
-use App\Models\SyncLog;
 use App\Models\TaskField;
 use App\Models\Profile;
 use App\Services\SyncRecordLogger;
