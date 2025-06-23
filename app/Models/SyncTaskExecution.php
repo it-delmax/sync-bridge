@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class SyncTaskExecution extends Model
 {
@@ -39,5 +40,10 @@ class SyncTaskExecution extends Model
             'finished_at' => now(),
             'status' => $status,
         ])->save();
+    }
+
+    public function batch(): BelongsTo
+    {
+        return $this->belongsTo(SyncBatch::class, 'batch_id', 'batch_id');
     }
 }

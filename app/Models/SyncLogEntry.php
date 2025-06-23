@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class SyncLogEntry extends Model
 {
@@ -23,4 +24,10 @@ class SyncLogEntry extends Model
         'attempt_no',
         'created_at',
     ];
+
+
+    public function batch(): BelongsTo
+    {
+        return $this->belongsTo(SyncBatch::class, 'batch_id', 'batch_id');
+    }
 }
