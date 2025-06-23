@@ -14,7 +14,7 @@ class SyncProfileCommand extends Command
 {
     use MeasuresElapsedTime;
 
-    protected $signature = 'dmx:sync-profile {name?}';
+    protected $signature = 'dmx:sync-profile {name?} ';
     protected $description = 'Execute sync profile by name';
 
     private $logConnection;
@@ -25,8 +25,6 @@ class SyncProfileCommand extends Command
 
         $name = $this->argument('name') ?? config('sync.profile_name');
 
-
-
         $profile = Profile::where('name', $name)->first();
 
         if (is_null($profile)) {
@@ -34,7 +32,7 @@ class SyncProfileCommand extends Command
             return Command::FAILURE;
         }
 
-        $this->logConnection = $profile->source->log_connection;
+        $this->logConnection = $profile->destination->log_connection;
 
         $startedAt = Carbon::now();
 

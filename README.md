@@ -6,12 +6,10 @@
 
 ## 🚀 Funkcionalnosti
 
--   ✅ Dinamička konekcija na više Firebird, MSSQL, MySQL baza
+-   ✅ Dinamička konekcija na različite tipove servera baza podataka Firebird, MSSQL, MySQL
 -   ✅ Višestruki `SyncTask` profili (definisani u bazi)
--   ✅ Logovanje svakog izvršenja u `sync_task_executions`
--   ✅ Transakcijski upiti sa rollback-om u slučaju greške
--   ✅ Automatska obrada novih/redovno promenjenih slogova
--   ✅ Podrška za SSO autentifikaciju prema udaljenim servisima
+-   ✅ Logovanje svakog izvršenja u `sync_batches` i `sync_task_executions`
+-   ✅ Zakazivanje izvršenja kroz Laravel scheduler ili CRONE
 
 ---
 
@@ -23,10 +21,12 @@ app/
 ├── Services/ # Logika obrade zadataka i sync bridge logika
 ├── Helpers/ # Dinamička konekcija, parsiranje stringova
 ├── Jobs/ # Queue-based izvršenje sync taskova (opciono)
+config/
+|- sync.php / # profile_name - default naziv profila
 database/
 ├── migrations/
 routes/
-├── console.php # Registracija komandi
+├── console.php # Registracija komandi za scheduler
 
 ---
 
@@ -39,6 +39,9 @@ APP_NAME=SyncBridge
 APP_ENV=local
 APP_KEY=base64:...
 
+# Naziv default profila za za sinhronizaciju
+SYNC_PROFILE_NAME='naziv_profila'
+
 LOG_CHANNEL=stack
 DB_CONNECTION=mysql
 DB_HOST=127.0.0.1
@@ -50,40 +53,34 @@ DB_PASSWORD=secret
 QUEUE_CONNECTION=database
 ```
 
-### Podesavanje u dmxsync bazi
+### Putanja od dmxsync baze
 
 ```
-server=10.101.2.205;
-database=ETG;
-user_name=abcde;
-password=secret;
-CharacterSet=utf8;
-DriverID=MySQL
+# Sync Database Connection
+DB_HOST_DMXSYNC=x.x.x.x|server.name.com
+DB_DATABASE_DMXSYNC=dmxsync
+DB_USERNAME_DMXSYNC=admin
+DB_PASSWORD_DMXSYNC=xxxxxxxx
 ```
 
-🛠️ Pokretanje sync taska ručno
+🛠️ Ručno pokretanje
 
-```
-php artisan sync:run-task {task_id}
-```
+Izvršavanje jednog taska
 
-## 📝 Primer task definicije u bazi
+`php artisan   dmx:sync-task 233`
 
-Tabela: sync_tasks
+-   223 je id taska
 
-| Polje       | Opis                                      |
-| ----------- | ----------------------------------------- |
-| id          | Primarni ključ                            |
-| resource_id | Referenca na konekciju                    |
-| table_name  | Naziv tabele u ERP                        |
-| handler     | Naziv PHP klase (npr. `StockSyncHandler`) |
-| is_active   | Aktivan task                              |
-| schedule    | Cron izraz (ako koristi scheduler)        |
+Izvršavanje profila
+
+`php artisan dmx:sync-profile naziv_profila` ako nije zatat naziv_profila pokusace da izvrsi onaj koji je podesen kao defaul u .env ili config
+
+`php artisan dmx:sync-profile profil_prvi`
+
+Brisanje sync2 tabela
+`dmx:delete-sync2-tables --days=5`
 
 ## 📦 Deployment
 
-Laravel Forge preporučen
-
-Cron job za php artisan schedule:run (ako koristiš zakazane taskove)
-
-Queue worker (ako koristiš dispatch() sync jobove)
+-   Laravel Forge preporučen
+-   PHP 8.4
