@@ -9,7 +9,7 @@ class SyncBatch extends Model
 {
 
 
-    protected $table = 'sync_batch';
+    protected $table = 'sync_batches';
     protected $primaryKey = 'batch_id';
 
     protected $fillable = [
