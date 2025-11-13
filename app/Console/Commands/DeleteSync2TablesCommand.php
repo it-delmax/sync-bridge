@@ -14,7 +14,7 @@ class DeleteSync2TablesCommand extends Command
     use MeasuresElapsedTime;
 
     protected $signature = 'dmx:delete-sync2-tables
-                            {profile : Ime profila za brisanje podataka iz *2 tabela, ako nije definisano, koristi se config.sync.profile_name})}
+                            {profile? : Ime profila za brisanje podataka iz *2 tabela, ako nije definisano, koristi se config.sync.profile_name})}
                             {--days=7 : Koliko dana unazad da zadržiš zapise (created_at)}';
 
     protected $description = 'Briše stare zapise iz *2 staging tabela za sync, starije od definisanog broja dana.';
