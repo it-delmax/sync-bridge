@@ -35,8 +35,8 @@ class DynamicConnection
         $database = $params['database'] ?? '';
         $username = $params['user_name'] ?? '';
         $password = $params['password'] ?? '';
-        $charset  = $params['CharacterSet'] ?? 'utf8';
-        $collation = $params['Collation'] ?? 'utf8_general_ci';
+        $charset  = $params['CharacterSet'] ?? 'utf8mb4';
+        $collation = $params['Collation'] ?? 'utf8mb4_unicode_ci';
 
         switch ($driverId) {
             case 'mysql':
