@@ -42,7 +42,7 @@ class DeleteSync2TablesCommand extends Command
     {
         $this->startTimer();
 
-        $name = $this->argument('name') ?? config('sync.profile_name');
+        $name = $this->argument('profile') ?? config('sync.profile_name');
 
         $days = (int) $this->option('days');
 
